@@ -458,8 +458,28 @@ function Install-Uv {
         return $true
     }
 
-    Write-Info "Installing managed uv into $HermesHome\bin ..."
     New-Item -ItemType Directory -Path (Join-Path $HermesHome "bin") -Force | Out-Null
+
+    # Before hitting the network, reuse a uv already on PATH by copying it into
+    # the managed location. Lets install succeed offline / behind a flaky proxy
+    # when the machine already has uv, without changing the "Hermes owns its own
+    # uv" invariant (managed_uv.py still finds it at $HermesHome\bin\uv.exe).
+    $existingUv = Get-Command uv -ErrorAction SilentlyContinue
+    if ($existingUv -and $existingUv.Source -and (Test-Path $existingUv.Source)) {
+        try {
+            Copy-Item -LiteralPath $existingUv.Source -Destination $managedUv -Force
+            if (Test-Path $managedUv) {
+                $script:UvCmd = $managedUv
+                $version = & $managedUv --version
+                Write-Success "Reused uv from PATH ($version)"
+                return $true
+            }
+        } catch {
+            Write-Info "Could not reuse uv from PATH ($_); falling back to download."
+        }
+    }
+
+    Write-Info "Installing managed uv into $HermesHome\bin ..."
 
     # UV_INSTALL_DIR tells the astral installer to place the binary
     # directly into $HermesHome\bin instead of ~/.local/bin.

@@ -575,8 +575,25 @@ install_uv() {
         return 0
     fi
 
-    log_info "Installing managed uv into $HERMES_HOME/bin ..."
     mkdir -p "$HERMES_HOME/bin"
+
+    # Before hitting the network, reuse a uv already on PATH by copying it into
+    # the managed location. Lets install succeed offline / behind a flaky proxy
+    # when the machine already has uv, without changing the "Hermes owns its own
+    # uv" invariant (managed_uv.py still finds it at $HERMES_HOME/bin/uv).
+    local _path_uv
+    _path_uv="$(command -v uv 2>/dev/null)"
+    if [ -n "$_path_uv" ] && [ -x "$_path_uv" ]; then
+        if cp "$_path_uv" "$_managed_uv" 2>/dev/null && [ -x "$_managed_uv" ]; then
+            UV_CMD="$_managed_uv"
+            UV_VERSION=$($UV_CMD --version 2>/dev/null)
+            log_success "Reused uv from PATH ($UV_VERSION)"
+            return 0
+        fi
+        log_info "Could not reuse uv from PATH; falling back to download."
+    fi
+
+    log_info "Installing managed uv into $HERMES_HOME/bin ..."
 
     # Two-stage: download the installer, then run it.  Piping
     # `curl | sh` masks curl failures (sh exits 0 on empty stdin)
