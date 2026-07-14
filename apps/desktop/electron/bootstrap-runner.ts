@@ -240,8 +240,14 @@ async function resolveInstallScript({
 }) {
   // 1. Dev shortcut: prefer a local checkout's installer so we can iterate
   //    without pushing. SOURCE_REPO_ROOT comes from main.ts (path.resolve
-  //    of APP_ROOT/../..).
-  const localScript = resolveLocalInstallScript(sourceRepoRoot)
+  //    of APP_ROOT/../..). HERMES_LOCAL_REPO lets an offline / bandwidth-
+  //    constrained machine point at an existing checkout so the whole
+  //    bootstrap (install script AND repository stage) avoids GitHub —
+  //    without it, a packaged build's SOURCE_REPO_ROOT lives inside app.asar
+  //    and never resolves at runtime, forcing a network download that fails
+  //    behind a flaky proxy (read ECONNRESET).
+  const localScript =
+    resolveLocalInstallScript(sourceRepoRoot) || resolveLocalInstallScript(process.env.HERMES_LOCAL_REPO)
 
   if (localScript) {
     emit({ type: 'log', line: `[bootstrap] using local ${installScriptName()} at ${localScript}` })
