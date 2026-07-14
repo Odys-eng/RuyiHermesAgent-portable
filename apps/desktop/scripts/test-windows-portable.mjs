@@ -134,9 +134,23 @@ function main() {
   if (!fs.existsSync(artifact)) throw new Error(`missing portable artifact: ${artifact}`)
   if (!fs.existsSync(unpacked.binary)) throw new Error(`missing unpacked executable: ${unpacked.binary}`)
 
+  // The unpacked application binary must match the build architecture exactly.
   const expectedMachine = process.arch === 'arm64' ? 0xaa64 : 0x8664
   if (readPeMachine(unpacked.binary) !== expectedMachine) {
     throw new Error(`portable application has the wrong PE architecture for ${process.arch}`)
+  }
+
+  // The outer portable launcher is electron-builder's self-extracting stub,
+  // which is a 32-bit (ia32, 0x014c) executable regardless of the packaged
+  // app's architecture. Accept the ia32 stub or a same-architecture launcher,
+  // but reject anything unexpected so a genuinely wrong build still fails.
+  const IMAGE_FILE_MACHINE_I386 = 0x014c
+  const launcherMachine = readPeMachine(artifact)
+  if (launcherMachine !== IMAGE_FILE_MACHINE_I386 && launcherMachine !== expectedMachine) {
+    throw new Error(
+      `portable launcher has an unexpected PE architecture: ${`0x${launcherMachine.toString(16).padStart(4, '0')}`} ` +
+        `(expected ia32 stub 0x014c or app arch 0x${expectedMachine.toString(16).padStart(4, '0')})`
+    )
   }
 
   validateInstalledMetadata(fileMetadata(unpacked.binary))
