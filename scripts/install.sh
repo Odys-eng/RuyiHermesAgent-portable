@@ -1203,6 +1203,35 @@ show_manual_install_hint() {
 clone_repo() {
     log_info "Installing to $INSTALL_DIR..."
 
+    # Offline / slow-network fast path: when HERMES_LOCAL_REPO points at an
+    # existing local checkout, clone from it over the filesystem instead of
+    # pulling the whole repo from GitHub. Lets a bandwidth-constrained or
+    # proxied machine bootstrap without a multi-minute network clone. Only
+    # taken when the target isn't already a repo; falls through to the normal
+    # network clone on any failure.
+    if [ -n "$HERMES_LOCAL_REPO" ] && [ -d "$HERMES_LOCAL_REPO/.git" ] && [ ! -d "$INSTALL_DIR/.git" ]; then
+        log_info "Cloning from local repository $HERMES_LOCAL_REPO (offline fast path)..."
+        rm -rf "$INSTALL_DIR" 2>/dev/null
+        if git clone "$HERMES_LOCAL_REPO" "$INSTALL_DIR" 2>/dev/null; then
+            _ref_ok=1
+            if [ -n "$COMMIT" ]; then
+                git -C "$INSTALL_DIR" checkout --detach "$COMMIT" 2>/dev/null || _ref_ok=0
+            elif [ -n "$TAG" ]; then
+                git -C "$INSTALL_DIR" checkout --detach "refs/tags/$TAG" 2>/dev/null || _ref_ok=0
+            elif [ -n "$BRANCH" ]; then
+                git -C "$INSTALL_DIR" checkout "$BRANCH" 2>/dev/null || _ref_ok=0
+            fi
+            if [ "$_ref_ok" = "1" ]; then
+                log_success "Cloned from local repository"
+                return 0
+            fi
+            log_warn "Local checkout failed to set the requested ref; falling back to network clone."
+            rm -rf "$INSTALL_DIR" 2>/dev/null
+        else
+            log_warn "Local clone failed; falling back to network clone."
+        fi
+    fi
+
     # An interrupted previous clone leaves a .git with no initial commit, where
     # the update path's `git stash` / `git checkout` abort with "You do not
     # have the initial commit yet" and fail the install (#40998). Move such a

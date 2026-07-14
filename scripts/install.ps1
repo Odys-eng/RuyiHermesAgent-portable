@@ -1297,6 +1297,45 @@ function Install-Repository {
 
     $didUpdate = $false
 
+    # Offline / slow-network fast path: when HERMES_LOCAL_REPO points at an
+    # existing local checkout, clone from it over the filesystem instead of
+    # pulling the whole repo from GitHub. Lets a bandwidth-constrained or
+    # proxied machine bootstrap without a multi-minute network clone. Only
+    # taken when the target isn't already a repo (the update path below owns
+    # that case). Falls through to the normal network clone on any failure.
+    $localRepo = $env:HERMES_LOCAL_REPO
+    if ($localRepo -and (Test-Path (Join-Path $localRepo ".git")) -and -not (Test-Path (Join-Path $InstallDir ".git"))) {
+        Write-Info "Cloning from local repository $localRepo (offline fast path)..."
+        $env:GIT_CONFIG_COUNT = "1"
+        $env:GIT_CONFIG_KEY_0 = "windows.appendAtomically"
+        $env:GIT_CONFIG_VALUE_0 = "false"
+        try {
+            if (Test-Path $InstallDir) { Remove-Item -Recurse -Force $InstallDir -ErrorAction SilentlyContinue }
+            Invoke-NativeWithRelaxedErrorAction { git -c windows.appendAtomically=false clone $localRepo $InstallDir }
+            if ($LASTEXITCODE -eq 0) {
+                Push-Location $InstallDir
+                try {
+                    if ($Commit) {
+                        Invoke-NativeWithRelaxedErrorAction { git -c windows.appendAtomically=false checkout --detach $Commit }
+                    } elseif ($Tag) {
+                        Invoke-NativeWithRelaxedErrorAction { git -c windows.appendAtomically=false checkout --detach "refs/tags/$Tag" }
+                    } elseif ($Branch) {
+                        Invoke-NativeWithRelaxedErrorAction { git -c windows.appendAtomically=false checkout $Branch }
+                    }
+                } finally { Pop-Location }
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Success "Cloned from local repository"
+                    return
+                }
+                Write-Warn "Local checkout failed to set the requested ref; falling back to network clone."
+            } else {
+                Write-Warn "Local clone failed; falling back to network clone."
+            }
+        } catch {
+            Write-Warn "Local clone errored ($_); falling back to network clone."
+        }
+    }
+
     if (Test-Path $InstallDir) {
         # Test-Path "$InstallDir\.git" returns True when .git is a file OR a
         # directory OR a symlink OR a submodule-style gitfile -- and also when
