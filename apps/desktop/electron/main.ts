@@ -3414,16 +3414,26 @@ function resolveHermesBackend(backendArgs) {
 
   // 2b. Portable build isolation -- a portable .exe must be self-contained: it
   //     manages its own runtime under the adjacent `data/` directory and must
-  //     NEVER adopt a machine-wide Hermes install (a bootstrap-complete
-  //     ACTIVE_HERMES_ROOT, a `hermes` on PATH, or a pip-installed hermes_cli).
-  //     Those installs can be a different/older version than the code this exe
-  //     was built from; driving a mismatched backend produces cryptic boot
-  //     failures (e.g. the headless /api/ready probe hitting a stale runtime
-  //     that answers 404). Skip steps 3-5 and go straight to bootstrap so the
-  //     portable build always provisions a matching runtime in its own data
-  //     dir. Step 1 (explicit HERMES_DESKTOP_HERMES_ROOT) is still honoured
-  //     above for developer-driven overrides.
+  //     NEVER adopt a machine-wide Hermes install (a `hermes` on PATH or a
+  //     pip-installed hermes_cli, steps 4-5). Those installs can be a
+  //     different/older version than the code this exe was built from; driving
+  //     a mismatched backend produces cryptic boot failures (e.g. the headless
+  //     /api/ready probe hitting a stale runtime that answers 404).
+  //
+  //     Crucially we still honour step 3 (isBootstrapComplete) FIRST: once the
+  //     portable runtime under data/ is provisioned, use it. Skipping that
+  //     check makes bootstrap re-run forever -- it completes, writes the
+  //     marker, re-resolves, and (having ignored the marker) bootstraps again.
+  //     ACTIVE_HERMES_ROOT already points inside the portable data dir here
+  //     because HERMES_HOME was forced to data/hermes by
+  //     applyPortableEnvironment, so isBootstrapComplete() reads the portable
+  //     marker, not a machine-wide one. If not yet complete, go straight to
+  //     bootstrap (never fall through to steps 4-5's global installs).
   if (PORTABLE_MODE.enabled) {
+    if (isBootstrapComplete()) {
+      return createActiveBackend(backendArgs)
+    }
+
     return {
       kind: 'bootstrap-needed',
       label: 'Portable RuyiHermesAgent runtime is not installed yet; bootstrap required',
