@@ -43,7 +43,7 @@ NC='\033[0m' # No Color
 BOLD='\033[1m'
 
 # Configuration
-REPO_SLUG="${HERMES_REPOSITORY:-DaPengRuYi/RuyiHermesAgent}"
+REPO_SLUG="${HERMES_REPOSITORY:-Odys-eng/RuyiHermesAgent-portable}"
 HERMES_HOME="${HERMES_HOME:-$HOME/.hermes}"
 # INSTALL_DIR is resolved AFTER arg parsing and OS detection so we can pick an
 # FHS-style layout for root installs.  Track whether the user gave us an

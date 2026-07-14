@@ -24,7 +24,7 @@ param(
     [string]$Commit = "",
     [string]$Tag = "",
     [ValidatePattern('^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$')]
-    [string]$RepoSlug = $(if ($env:HERMES_REPOSITORY) { $env:HERMES_REPOSITORY } else { "DaPengRuYi/RuyiHermesAgent" }),
+    [string]$RepoSlug = $(if ($env:HERMES_REPOSITORY) { $env:HERMES_REPOSITORY } else { "Odys-eng/RuyiHermesAgent-portable" }),
     [string]$HermesHome = $(if ($env:HERMES_HOME) { $env:HERMES_HOME } else { "$env:LOCALAPPDATA\hermes" }),
     [string]$InstallDir = $(if ($env:HERMES_HOME) { "$env:HERMES_HOME\hermes-agent" } else { "$env:LOCALAPPDATA\hermes\hermes-agent" }),
 
