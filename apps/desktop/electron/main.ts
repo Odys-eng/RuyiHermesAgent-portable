@@ -3412,6 +3412,33 @@ function resolveHermesBackend(backendArgs) {
     }
   }
 
+  // 2b. Portable build isolation -- a portable .exe must be self-contained: it
+  //     manages its own runtime under the adjacent `data/` directory and must
+  //     NEVER adopt a machine-wide Hermes install (a bootstrap-complete
+  //     ACTIVE_HERMES_ROOT, a `hermes` on PATH, or a pip-installed hermes_cli).
+  //     Those installs can be a different/older version than the code this exe
+  //     was built from; driving a mismatched backend produces cryptic boot
+  //     failures (e.g. the headless /api/ready probe hitting a stale runtime
+  //     that answers 404). Skip steps 3-5 and go straight to bootstrap so the
+  //     portable build always provisions a matching runtime in its own data
+  //     dir. Step 1 (explicit HERMES_DESKTOP_HERMES_ROOT) is still honoured
+  //     above for developer-driven overrides.
+  if (PORTABLE_MODE.enabled) {
+    return {
+      kind: 'bootstrap-needed',
+      label: 'Portable RuyiHermesAgent runtime is not installed yet; bootstrap required',
+      command: null,
+      args: backendArgs,
+      bootstrap: true,
+      env: {},
+      shell: false,
+      activeRoot: ACTIVE_HERMES_ROOT,
+      installStamp: INSTALL_STAMP,
+      isPackaged: IS_PACKAGED,
+      platform: process.platform
+    }
+  }
+
   // 3. Bootstrap-complete ACTIVE_HERMES_ROOT -- the canonical install at
   //    %LOCALAPPDATA%\hermes\hermes-agent (Windows) or ~/.hermes/hermes-agent.
   //    The bootstrap marker means install.ps1 stages finished and the user

@@ -38,21 +38,24 @@ test('portable mode keeps desktop and Hermes state beside the launcher', () => {
   assert.equal(shouldRegisterDeepLinkProtocol(mode), false)
 })
 
-test('portable defaults preserve an explicit HERMES_HOME override', () => {
+test('portable forces HERMES_HOME to the adjacent data dir, overriding inherited values', () => {
   const mode = resolvePortableMode({
     env: { PORTABLE_EXECUTABLE_DIR: 'D:\\Tools' },
     platform: 'win32',
     pathModule: path.win32
   })
   const defaultEnv: NodeJS.ProcessEnv = {}
-  const explicitEnv: NodeJS.ProcessEnv = { HERMES_HOME: 'E:\\HermesData' }
+  // An inherited HERMES_HOME (from the process env or the Windows user-env
+  // registry) must NOT divert a portable launch onto a global install — the
+  // portable build is self-contained and always uses its own data dir.
+  const inheritedEnv: NodeJS.ProcessEnv = { HERMES_HOME: 'E:\\HermesData' }
 
   applyPortableEnvironment(mode, defaultEnv)
-  applyPortableEnvironment(mode, explicitEnv)
+  applyPortableEnvironment(mode, inheritedEnv)
 
   assert.equal(defaultEnv.HERMES_DESKTOP_PORTABLE, '1')
   assert.equal(defaultEnv.HERMES_HOME, 'D:\\Tools\\data\\hermes')
-  assert.equal(explicitEnv.HERMES_HOME, 'E:\\HermesData')
+  assert.equal(inheritedEnv.HERMES_HOME, 'D:\\Tools\\data\\hermes')
 })
 
 test('portable builds direct updates to executable replacement', () => {

@@ -43,7 +43,12 @@ export function applyPortableEnvironment(mode: PortableMode, env: NodeJS.Process
   }
 
   env.HERMES_DESKTOP_PORTABLE = '1'
-  env.HERMES_HOME ||= mode.hermesHome
+  // A portable build is self-contained: force HERMES_HOME to the adjacent
+  // data dir so an inherited machine-wide HERMES_HOME (process env OR the
+  // Windows user-env registry that resolveHermesHome consults) can never
+  // divert a portable launch onto a global install. Overriding here — rather
+  // than `||=` — is what makes "portable" actually portable across hosts.
+  env.HERMES_HOME = mode.hermesHome
 }
 
 export function shouldRegisterDeepLinkProtocol(mode: PortableMode) {
