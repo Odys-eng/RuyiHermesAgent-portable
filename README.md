@@ -1,3 +1,5 @@
+> **📦 这是 Windows 绿色便携版 fork。** 想直接下载单文件 exe、或了解本 fork 相对上游做了哪些改动（便携化、运行时隔离、弱网首次安装优化），请看 **[README.fork.md](README.fork.md)**。以下为上游 Hermes Agent 原始文档。
+
 <p align="center">
   <img src="assets/banner.png" alt="Hermes Agent" width="100%">
 </p>
